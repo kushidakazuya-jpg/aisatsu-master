@@ -559,25 +559,25 @@
                     <div class="stamps-grid">
                         <div class="stamp-box">
                             <span class="stamp-label" data-editable="false" spellcheck="false">1かいめ</span>
-                            <div class="stamp-circle" onclick="toggleStamp(this)">
+                            <div class="stamp-circle" onclick="toggleStamp(this, 0)">
                                 <span class="stamp-emoji">🌟</span>
                             </div>
                         </div>
                         <div class="stamp-box">
                             <span class="stamp-label" data-editable="false" spellcheck="false">2かいめ</span>
-                            <div class="stamp-circle" onclick="toggleStamp(this)">
+                            <div class="stamp-circle" onclick="toggleStamp(this, 1)">
                                 <span class="stamp-emoji">🌸</span>
                             </div>
                         </div>
                         <div class="stamp-box">
                             <span class="stamp-label" data-editable="false" spellcheck="false">3かいめ</span>
-                            <div class="stamp-circle" onclick="toggleStamp(this)">
+                            <div class="stamp-circle" onclick="toggleStamp(this, 2)">
                                 <span class="stamp-emoji">🌈</span>
                             </div>
                         </div>
                         <div class="stamp-box">
                             <span class="stamp-label" data-editable="false" spellcheck="false">4かいめ</span>
-                            <div class="stamp-circle" onclick="toggleStamp(this)">
+                            <div class="stamp-circle" onclick="toggleStamp(this, 3)">
                                 <span class="stamp-emoji">👑</span>
                             </div>
                         </div>
@@ -649,28 +649,83 @@
     </div>
 
     <script>
-        /* --- カスタムメッセージのデータ --- */
-        let customMessages = {
-            1: "にっこり ごあいさつ\nステキだね！",
-            2: "おおきな こえで\nごあいさつ できたね！",
-            3: "あいての めをみて\nごあいさつ できたね！",
-            4: "じぶんから\nごあいさつ できたね！",
-            clear: "🌟 ぜんぶ クリア おめでとう！ 🌟\n\nきみは もう、りっぱな\n「あいさつマスター」だね！\nこれからも すてきな あいさつを\nつづけてね！"
+        /* --- 状態管理 (セーブ機能) --- */
+        let state = {
+            name: "",
+            photo: "",
+            stamps: [false, false, false, false],
+            customMessages: {
+                1: "にっこり ごあいさつ\nステキだね！",
+                2: "おおきな こえで\nごあいさつ できたね！",
+                3: "あいての めをみて\nごあいさつ できたね！",
+                4: "じぶんから\nごあいさつ できたね！",
+                clear: "🌟 ぜんぶ クリア おめでとう！ 🌟\n\nきみは もう、りっぱな\n「あいさつマスター」だね！\nこれからも すてきな あいさつを\nつづけてね！"
+            }
         };
 
+        const stampElements = document.querySelectorAll('.stamp-circle');
+        const photoImg = document.getElementById('photoImg');
+        const photoPlaceholder = document.getElementById('photoPlaceholder');
+        const nameInput = document.getElementById('nameInput');
+        const displayName = document.getElementById('displayName');
+        const photoInput = document.getElementById('photoInput');
+
+        function saveState() {
+            try {
+                localStorage.setItem('aisatsuMasterState', JSON.stringify(state));
+            } catch(e) {
+                console.error("セーブに失敗しました", e);
+            }
+        }
+
+        function init() {
+            const savedState = localStorage.getItem('aisatsuMasterState');
+            if (savedState) {
+                try { 
+                    const parsed = JSON.parse(savedState); 
+                    state.name = parsed.name || "";
+                    state.photo = parsed.photo || "";
+                    state.stamps = parsed.stamps || [false, false, false, false];
+                    if (parsed.customMessages) {
+                        state.customMessages = { ...state.customMessages, ...parsed.customMessages };
+                    }
+                } catch(e) {}
+            }
+
+            nameInput.value = state.name;
+            displayName.textContent = state.name || '〇〇';
+
+            if (state.photo) {
+                photoImg.src = state.photo;
+                photoImg.style.display = 'block';
+                photoPlaceholder.style.display = 'none';
+            }
+
+            stampElements.forEach((stamp, index) => {
+                if (state.stamps[index]) {
+                    stamp.classList.add('stamped');
+                } else {
+                    stamp.classList.remove('stamped');
+                }
+            });
+
+            updateMessageDisplay();
+        }
+
         // スタンプ押印処理
-        function toggleStamp(element) {
+        function toggleStamp(element, index) {
             element.classList.toggle('stamped');
+            state.stamps[index] = element.classList.contains('stamped');
+            saveState();
             updateMessageDisplay();
         }
 
         // メッセージ領域の表示更新
         function updateMessageDisplay() {
-            const stamps = document.querySelectorAll('.stamp-circle');
             let maxStamped = 0;
             let allCleared = true;
 
-            stamps.forEach((stamp, index) => {
+            stampElements.forEach((stamp, index) => {
                 if (stamp.classList.contains('stamped')) {
                     maxStamped = Math.max(maxStamped, index + 1);
                 } else {
@@ -685,13 +740,13 @@
             if (isEditMode) {
                 msgContainer.style.opacity = '1';
                 if (maxStamped === 0) {
-                    dynamicMsg.innerText = customMessages[1]; 
+                    dynamicMsg.innerText = state.customMessages[1]; 
                     dynamicMsg.className = "mt-2 text-gray-800 font-bold";
                 } else if (allCleared) {
-                    dynamicMsg.innerText = customMessages.clear;
+                    dynamicMsg.innerText = state.customMessages.clear;
                     dynamicMsg.className = "mt-2 text-pink-600 font-extrabold text-xl"; 
                 } else {
-                    dynamicMsg.innerText = customMessages[maxStamped];
+                    dynamicMsg.innerText = state.customMessages[maxStamped];
                     dynamicMsg.className = "mt-2 text-gray-800 font-bold";
                 }
                 return;
@@ -702,10 +757,10 @@
                 msgContainer.style.opacity = '0';
             } else {
                 if (allCleared) {
-                    dynamicMsg.innerText = customMessages.clear;
+                    dynamicMsg.innerText = state.customMessages.clear;
                     dynamicMsg.className = "mt-2 text-pink-600 font-extrabold text-xl"; 
                 } else {
-                    dynamicMsg.innerText = customMessages[maxStamped];
+                    dynamicMsg.innerText = state.customMessages[maxStamped];
                     dynamicMsg.className = "mt-2 text-gray-800 font-bold";
                 }
                 msgContainer.style.opacity = '1';
@@ -714,11 +769,11 @@
 
         /* --- メッセージ設定モーダルのロジック --- */
         function openMessageConfig() {
-            document.getElementById('msgInput1').value = customMessages[1];
-            document.getElementById('msgInput2').value = customMessages[2];
-            document.getElementById('msgInput3').value = customMessages[3];
-            document.getElementById('msgInput4').value = customMessages[4];
-            document.getElementById('msgInputClear').value = customMessages.clear;
+            document.getElementById('msgInput1').value = state.customMessages[1];
+            document.getElementById('msgInput2').value = state.customMessages[2];
+            document.getElementById('msgInput3').value = state.customMessages[3];
+            document.getElementById('msgInput4').value = state.customMessages[4];
+            document.getElementById('msgInputClear').value = state.customMessages.clear;
             document.getElementById('messageConfigModal').classList.remove('hidden');
         }
 
@@ -727,12 +782,13 @@
         }
 
         function saveMessageConfig() {
-            customMessages[1] = document.getElementById('msgInput1').value;
-            customMessages[2] = document.getElementById('msgInput2').value;
-            customMessages[3] = document.getElementById('msgInput3').value;
-            customMessages[4] = document.getElementById('msgInput4').value;
-            customMessages.clear = document.getElementById('msgInputClear').value;
+            state.customMessages[1] = document.getElementById('msgInput1').value;
+            state.customMessages[2] = document.getElementById('msgInput2').value;
+            state.customMessages[3] = document.getElementById('msgInput3').value;
+            state.customMessages[4] = document.getElementById('msgInput4').value;
+            state.customMessages.clear = document.getElementById('msgInputClear').value;
             closeMessageConfig();
+            saveState();
             updateMessageDisplay(); 
         }
 
@@ -780,8 +836,7 @@
 
         /* --- 編集モード切替ロジック --- */
         const editToggleBtn = document.getElementById('editToggleBtn');
-        const nameInput = document.getElementById('nameInput');
-        const photoInput = document.getElementById('photoInput');
+        // nameInputとphotoInputは上で宣言されているため、ここでは宣言しない
         const editables = document.querySelectorAll('[data-editable]');
         let isEditMode = false;
 
@@ -809,30 +864,46 @@
         }
 
         /* --- アプリの基本機能 --- */
-        const photoImg = document.getElementById('photoImg');
-        const photoPlaceholder = document.getElementById('photoPlaceholder');
 
         photoInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    photoImg.src = event.target.result;
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    let size = 400; 
+                    let w = img.width, h = img.height;
+                    if(w > h) { h *= size/w; w = size; } else { w *= size/h; h = size; }
+                    canvas.width = w; canvas.height = h;
+                    ctx.drawImage(img, 0, 0, w, h);
+                    
+                    state.photo = canvas.toDataURL('image/jpeg', 0.8);
+                    photoImg.src = state.photo;
                     photoImg.style.display = 'block';
                     photoPlaceholder.style.display = 'none';
-                }
-                reader.readAsDataURL(file);
+                    saveState();
+                };
+                img.src = event.target.result;
             }
+            reader.readAsDataURL(file);
         });
 
-        const displayName = document.getElementById('displayName');
         nameInput.addEventListener('input', function(e) {
             const val = e.target.value.trim();
+            state.name = val;
             displayName.textContent = val || '〇〇';
+            saveState();
         });
 
         function resetCard() {
             if(confirm('カードをリセットしますか？入力した内容やスタンプが消えます。')) {
+                state.photo = "";
+                state.name = "";
+                state.stamps = [false, false, false, false];
+                
                 photoImg.src = '';
                 photoImg.style.display = 'none';
                 photoPlaceholder.style.display = 'block';
@@ -840,17 +911,17 @@
                 nameInput.value = '';
                 displayName.textContent = '〇〇';
 
-                const stamps = document.querySelectorAll('.stamp-circle');
-                stamps.forEach(stamp => {
+                stampElements.forEach(stamp => {
                     stamp.classList.remove('stamped');
                 });
                 
+                saveState();
                 updateMessageDisplay(); 
             }
         }
         
         // 初回ロード時に状態を反映
-        updateMessageDisplay();
+        init();
     </script>
 </body>
 </html>
